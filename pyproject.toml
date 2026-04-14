@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tekkipodi-editor"
+version = "0.1.0"
+description = "Headless CLI that turns raw podcast segments into a finished, mastered MP3."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "jaamo" }]
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "faster-whisper>=1.0",
+    "pedalboard>=0.9",
+    "pydub>=0.25",
+    "pyloudnorm>=0.1",
+    "rapidfuzz>=3.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "numpy>=1.26",
+]
+
+[project.scripts]
+podtool = "podtool.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/podtool"]
