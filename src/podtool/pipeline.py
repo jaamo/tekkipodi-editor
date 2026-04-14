@@ -35,10 +35,46 @@ INTRO_FADEOUT_END_MS = 15000
 MID_PREV_OVERLAP_MS = 1400
 MID_NEXT_DELAY_MS = 4000
 
-# Base attenuation applied to both jingles before they hit the timeline. The
-# intro duck (INTRO_DUCKED_GAIN_DB) is layered on top of this, so the ducked
-# intro tail ends up at JINGLE_GAIN_DB + INTRO_DUCKED_GAIN_DB below full scale.
-JINGLE_GAIN_DB = -9.0
+# Target integrated loudness for both jingles *before* they hit the timeline.
+# We loudness-normalize each jingle (via pyloudnorm) to this value rather than
+# applying a relative gain, so the final jingle level in the mastered episode
+# is independent of how loud the source jingle file happens to be. The master
+# stage then gain-matches the whole mix to TARGET_LUFS (-16 LUFS in master.py)
+# based mostly on the speech, so a jingle normalized to JINGLE_TARGET_LUFS
+# ends up at roughly (JINGLE_TARGET_LUFS + (master.TARGET_LUFS - speech_lufs))
+# in the final render — with speech typically around -20 LUFS at source, a
+# jingle target of -30 LUFS lands the jingle ~10 dB below the speech in the
+# mastered output. Tune this single constant to move all jingles louder or
+# quieter uniformly. The intro duck (INTRO_DUCKED_GAIN_DB) is still layered
+# on top of this, so the ducked intro tail is ~10 dB below JINGLE_TARGET_LUFS.
+JINGLE_TARGET_LUFS = -30.0
+
+
+def _normalize_loudness(
+    audio: "AudioSegment", target_lufs: float
+) -> "AudioSegment":
+    """Apply a linear gain so that `audio`'s integrated loudness (measured
+    via pyloudnorm, the same meter `master.py` uses for the episode-wide
+    pass) matches `target_lufs`. If the measurement is not finite (silent
+    or too short for the meter), the audio is returned unchanged."""
+    import math
+
+    import numpy as np
+    import pyloudnorm as pyln
+
+    samples = np.array(audio.get_array_of_samples(), dtype=np.float64)
+    if audio.channels > 1:
+        samples = samples.reshape((-1, audio.channels))
+    # pydub samples are signed integers in [-2**(bits-1), 2**(bits-1)-1];
+    # pyloudnorm expects floats in roughly [-1.0, 1.0].
+    scale = float(1 << (8 * audio.sample_width - 1))
+    samples /= scale
+
+    meter = pyln.Meter(audio.frame_rate)
+    loudness = meter.integrated_loudness(samples)
+    if not math.isfinite(loudness):
+        return audio
+    return audio + (target_lufs - loudness)
 
 
 def _duck_intro(intro: "AudioSegment") -> "AudioSegment":
@@ -87,8 +123,12 @@ def _build_episode_tracks(
     def coerce(a: AudioSegment) -> AudioSegment:
         return a.set_frame_rate(fr).set_channels(ch)
 
-    intro = coerce(AudioSegment.from_file(intro_path)) + JINGLE_GAIN_DB
-    mid = coerce(AudioSegment.from_file(mid_path)) + JINGLE_GAIN_DB
+    intro = _normalize_loudness(
+        coerce(AudioSegment.from_file(intro_path)), JINGLE_TARGET_LUFS
+    )
+    mid = _normalize_loudness(
+        coerce(AudioSegment.from_file(mid_path)), JINGLE_TARGET_LUFS
+    )
     segments = [coerce(s) for s in segments]
 
     tracks: list[tuple[AudioSegment, int]] = [

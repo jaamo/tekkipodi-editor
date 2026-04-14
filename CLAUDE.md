@@ -59,12 +59,19 @@ touching a source file re-triggers transcription for that segment only.
 ## Jingle convention
 
 `intro.wav` and `mid.wav` at the **repo root** are hard-coded in
-`io_utils.py` (`INTRO_JINGLE`, `MID_JINGLE`). Both jingles are attenuated by
-`JINGLE_GAIN_DB` (−9 dB) before anything else happens to them, so they sit
-under the speech; tune that single constant in `pipeline.py` to make the
-jingles louder or quieter episode-wide. Both jingles also participate in
-cross-plays with adjacent segments; the timings live as module-level
-constants at the top of `pipeline.py`.
+`io_utils.py` (`INTRO_JINGLE`, `MID_JINGLE`). Both jingles are
+loudness-normalized by `_normalize_loudness()` to `JINGLE_TARGET_LUFS`
+(−30 LUFS) via `pyloudnorm` before anything else happens to them, so the
+jingles' final level is independent of how hot the source WAV is mastered.
+Tune that single constant in `pipeline.py` to move all jingles louder or
+quieter episode-wide. (A previous `JINGLE_GAIN_DB = -9` relative-gain
+approach was removed because it gave unpredictable final levels whenever
+the source jingles were mastered differently — typical commercial jingle
+files are at −11 to −15 LUFS, so −9 dB of relative attenuation landed them
+nearly flush with the speech after the master stage normalized everything
+to −16 LUFS.) Both jingles also participate in cross-plays with adjacent
+segments; the timings live as module-level constants at the top of
+`pipeline.py`.
 
 **Intro (opening):** the intro plays at full volume, then ducks linearly by
 `INTRO_DUCKED_GAIN_DB` (−10 dB) across
