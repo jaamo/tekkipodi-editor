@@ -7,3 +7,4 @@ dist/
 .podtool/
 .pytest_cache/
 jakso*
+final.wav
