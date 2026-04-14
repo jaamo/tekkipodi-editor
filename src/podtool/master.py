@@ -5,13 +5,28 @@ from pathlib import Path
 TARGET_LUFS = -16.0
 PEAK_CEILING_DB = -1.0
 
+# Noise gate tuning. `silence.py` already strips silence per-segment at
+# SILENCE_THRESH_DB = -40, so anything the gate sees is intentional audio;
+# the gate's only remaining job is light noise/room-tone reduction *during*
+# speech. These values give a gentle soft-knee expander that won't chatter
+# on quiet speech tails or the intro fade-out.
+NOISE_GATE_THRESHOLD_DB = -55.0
+NOISE_GATE_RATIO = 2.0
+NOISE_GATE_ATTACK_MS = 5.0
+NOISE_GATE_RELEASE_MS = 300.0
+
 
 def build_chain():
     from pedalboard import HighpassFilter, Limiter, NoiseGate, Pedalboard
 
     return Pedalboard(
         [
-            NoiseGate(threshold_db=-40),
+            NoiseGate(
+                threshold_db=NOISE_GATE_THRESHOLD_DB,
+                ratio=NOISE_GATE_RATIO,
+                attack_ms=NOISE_GATE_ATTACK_MS,
+                release_ms=NOISE_GATE_RELEASE_MS,
+            ),
             HighpassFilter(cutoff_frequency_hz=80),
             Limiter(threshold_db=PEAK_CEILING_DB, release_ms=100),
         ]

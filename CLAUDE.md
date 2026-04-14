@@ -110,5 +110,6 @@ input files.
 - New pipeline stages go through `pipeline.py`, not the CLI. The CLI in
   `cli.py` is thin — each subcommand is a user-facing entry into one stage.
 - Tuning knobs live as module-level constants (`TARGET_LUFS`,
-  `SILENCE_THRESH_DB`, `WINDOW_CHUNKS`, `PROXIMITY_SECONDS`, ...). Prefer
-  adjusting those over adding new CLI flags unless the user asks.
+  `SILENCE_THRESH_DB`, `WINDOW_CHUNKS`, `PROXIMITY_SECONDS`,
+  `NOISE_GATE_*`, ...). Prefer adjusting those over adding new CLI flags
+  unless the user asks.
