@@ -63,5 +63,9 @@ class Session:
         return self.cache_dir / "decisions.json"
 
     @property
+    def silence_log_path(self) -> Path:
+        return self.cache_dir / "silence_log.json"
+
+    @property
     def assembled_path(self) -> Path:
         return self.cache_dir / "assembled.wav"
