@@ -18,6 +18,8 @@ dependencies = [
     "pydub>=0.25",
     "pyloudnorm>=0.1",
     "rapidfuzz>=3.6",
+    "anthropic>=0.40",
+    "python-dotenv>=1.0",
 ]
 
 [project.optional-dependencies]

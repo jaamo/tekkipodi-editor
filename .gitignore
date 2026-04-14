@@ -8,3 +8,4 @@ dist/
 .pytest_cache/
 jakso*
 final.wav
+.env

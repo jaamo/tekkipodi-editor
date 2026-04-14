@@ -11,6 +11,7 @@ AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".aiff", ".aif"}
 REPO_ROOT = Path(__file__).resolve().parents[2]
 INTRO_JINGLE = REPO_ROOT / "intro.wav"
 MID_JINGLE = REPO_ROOT / "mid.wav"
+TONE_OF_VOICE = REPO_ROOT / "tone_of_voice.md"
 
 
 def require_jingles() -> tuple[Path, Path]:
@@ -21,6 +22,16 @@ def require_jingles() -> tuple[Path, Path]:
             "Missing jingle(s): " + ", ".join(str(p) for p in missing)
         )
     return INTRO_JINGLE, MID_JINGLE
+
+
+def require_tone_of_voice() -> Path:
+    """Return the tone-of-voice file path; raise if it is missing."""
+    if not TONE_OF_VOICE.exists():
+        raise FileNotFoundError(
+            f"Tone-of-voice file not found: {TONE_OF_VOICE}. "
+            "Create it at the repo root before running `podtool blog`."
+        )
+    return TONE_OF_VOICE
 
 
 def discover_session(root: Path) -> Session:

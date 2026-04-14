@@ -3,13 +3,19 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
 
 from .dedup import plan_session_cuts, write_decisions
-from .io_utils import discover_session
+from .io_utils import REPO_ROOT, discover_session
 from .master import master_audio
 from .pipeline import process_session
 from .silence import strip_silence
 from .transcribe import transcribe_session
+
+# Load environment variables from a `.env` file at the repo root (if present)
+# before Typer parses argv, so commands like `blog` can read ANTHROPIC_API_KEY
+# without the user having to export it every shell session.
+load_dotenv(REPO_ROOT / ".env")
 
 app = typer.Typer(
     name="podtool",
@@ -28,10 +34,10 @@ def process(
         help="Folder of numbered segment recordings (e.g. 01_intro.wav, 02_topic.wav).",
     ),
     output: Path = typer.Option(
-        Path("final.wav"),
+        None,
         "--output",
         "-o",
-        help="Path for the final mastered file (extension decides format; .wav by default).",
+        help="Path for the final mastered file (default: <session>/output/final.wav).",
     ),
     model: str = typer.Option(
         "small",
@@ -119,6 +125,43 @@ def trim(
     trimmed.export(output_path, format=output_path.suffix.lstrip(".") or "wav")
     typer.echo(
         f"Trimmed {len(audio) / 1000:.2f}s → {len(trimmed) / 1000:.2f}s → {output_path}"
+    )
+
+
+@app.command()
+def blog(
+    session_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        help="Session folder whose segments should become the blog post.",
+    ),
+    model: str = typer.Option(
+        "small",
+        "--model",
+        "-m",
+        help="Faster-Whisper model size for the transcribe pass (tiny, base, small, medium, large).",
+    ),
+    llm_model: str = typer.Option(
+        "claude-sonnet-4-6",
+        "--llm-model",
+        help="Anthropic model ID used to draft the title, description, and body.",
+    ),
+) -> None:
+    """Draft a Finnish blog post (title, description, chaptered body) from a session's transcripts.
+
+    Reads tone-of-voice from `tone_of_voice.md` at the repo root and calls the
+    Anthropic API (set ANTHROPIC_API_KEY in the environment or .env). Writes
+    `<session>/output/shownotes.md` and `<session>/output/<YYYY-MM-DD>-<slug>.md`.
+    """
+    from .blog import generate_blog
+
+    session = discover_session(session_dir)
+    generate_blog(
+        session=session,
+        model_size=model,
+        llm_model=llm_model,
     )
 
 

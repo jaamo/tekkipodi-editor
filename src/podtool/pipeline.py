@@ -149,12 +149,14 @@ def _build_episode_tracks(
 
 def process_session(
     session_root: Path,
-    output: Path,
+    output: Path | None = None,
     model_size: str = "small",
     dedup_threshold: float = 0.9,
     dedup_enabled: bool = True,
 ) -> Path:
     session = discover_session(session_root)
+    if output is None:
+        output = session.output_dir / "final.wav"
     _console.rule(f"[bold]podtool[/bold] {session_root.name}")
     _console.log(f"{len(session.segments)} segments found")
 

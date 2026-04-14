@@ -69,3 +69,7 @@ class Session:
     @property
     def assembled_path(self) -> Path:
         return self.cache_dir / "assembled.wav"
+
+    @property
+    def output_dir(self) -> Path:
+        return self.root / "output"
