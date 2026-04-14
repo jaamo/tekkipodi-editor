@@ -28,7 +28,10 @@ def process(
         help="Folder of numbered segment recordings (e.g. 01_intro.wav, 02_topic.wav).",
     ),
     output: Path = typer.Option(
-        Path("final.mp3"), "--output", "-o", help="Path for the final mastered MP3."
+        Path("final.wav"),
+        "--output",
+        "-o",
+        help="Path for the final mastered file (extension decides format; .wav by default).",
     ),
     model: str = typer.Option(
         "small",
