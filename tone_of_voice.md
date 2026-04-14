@@ -11,3 +11,7 @@ Käytännönläheisyys. Abstraktien lupausten sijaan kerrotaan konkreettisesti m
 Yhteisöllisyys ilman teennäisyyttä. Lukijaa puhutellaan suoraan ja luontevasti. Kiitokset ovat vilpittömiä, palaute on tervetullutta, mutta mitään "me ollaan yhdessä tässä matkalla" -retoriikkaa ei harrasteta.
 
 Huumori. Kuivahkoa, itseironista ja luontevaa. Se syntyy tilanteista ja rehellisyydestä, ei vitsien kertomisesta. Saa lukijan hymähtämään, ei nauramaan ääneen.
+
+Älä käytä sinä-passiivia.
+
+Käytä passiivia. Älä käytä muotoa "Tässä podcastissa Jaakko puhuu..." vaan "Tässä podcastissa puhutaan..."
