@@ -15,10 +15,18 @@ class Segment:
 
 
 @dataclass(frozen=True)
+class Word:
+    start: float
+    end: float
+    text: str
+
+
+@dataclass(frozen=True)
 class TranscriptChunk:
     start: float
     end: float
     text: str
+    words: list[Word] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -69,6 +77,10 @@ class Session:
     @property
     def assembled_path(self) -> Path:
         return self.cache_dir / "assembled.wav"
+
+    @property
+    def review_path(self) -> Path:
+        return self.root / "review.md"
 
     @property
     def output_dir(self) -> Path:

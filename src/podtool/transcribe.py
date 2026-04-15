@@ -8,7 +8,11 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from .io_utils import is_cache_fresh
-from .models import Segment, Session, TranscriptChunk
+from .models import Segment, Session, TranscriptChunk, Word
+
+
+class _LegacyCacheError(Exception):
+    """Raised when a cached transcript predates word-level timestamps."""
 
 _console = Console()
 _model_cache: dict[str, object] = {}
@@ -35,8 +39,16 @@ def transcribe_session(session: Session, model_size: str = "small") -> dict[str,
     for segment in session.segments:
         cache = _transcript_path(session, segment)
         if is_cache_fresh(cache, segment.path):
-            results[segment.stem] = _load_chunks(cache)
-            _console.log(f"[dim]cache hit[/dim] {segment.stem}")
+            try:
+                results[segment.stem] = _load_chunks(cache)
+            except _LegacyCacheError:
+                _console.log(
+                    f"[dim]stale cache[/dim] {segment.stem} "
+                    "(pre-word-timestamp format, re-transcribing)"
+                )
+                pending.append(segment)
+            else:
+                _console.log(f"[dim]cache hit[/dim] {segment.stem}")
         else:
             pending.append(segment)
 
@@ -60,15 +72,38 @@ def transcribe_session(session: Session, model_size: str = "small") -> dict[str,
 
 
 def _run_whisper(model, audio_path: Path) -> Iterable[TranscriptChunk]:
-    segments, _info = model.transcribe(str(audio_path), vad_filter=True)
+    segments, _info = model.transcribe(
+        str(audio_path), vad_filter=True, word_timestamps=True
+    )
     for s in segments:
-        yield TranscriptChunk(start=float(s.start), end=float(s.end), text=s.text.strip())
+        words = [
+            Word(start=float(w.start), end=float(w.end), text=w.word.strip())
+            for w in (s.words or [])
+            if w.start is not None and w.end is not None
+        ]
+        yield TranscriptChunk(
+            start=float(s.start),
+            end=float(s.end),
+            text=s.text.strip(),
+            words=words,
+        )
 
 
 def _write_chunks(path: Path, chunks: list[TranscriptChunk]) -> None:
     path.write_text(
         json.dumps(
-            [{"start": c.start, "end": c.end, "text": c.text} for c in chunks],
+            [
+                {
+                    "start": c.start,
+                    "end": c.end,
+                    "text": c.text,
+                    "words": [
+                        {"start": w.start, "end": w.end, "text": w.text}
+                        for w in c.words
+                    ],
+                }
+                for c in chunks
+            ],
             indent=2,
         )
     )
@@ -76,4 +111,16 @@ def _write_chunks(path: Path, chunks: list[TranscriptChunk]) -> None:
 
 def _load_chunks(path: Path) -> list[TranscriptChunk]:
     raw = json.loads(path.read_text())
-    return [TranscriptChunk(start=r["start"], end=r["end"], text=r["text"]) for r in raw]
+    chunks: list[TranscriptChunk] = []
+    for r in raw:
+        if "words" not in r:
+            raise _LegacyCacheError(str(path))
+        words = [
+            Word(start=w["start"], end=w["end"], text=w["text"]) for w in r["words"]
+        ]
+        chunks.append(
+            TranscriptChunk(
+                start=r["start"], end=r["end"], text=r["text"], words=words
+            )
+        )
+    return chunks

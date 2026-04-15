@@ -6,9 +6,16 @@ from pathlib import Path
 from rich.console import Console
 
 from .assemble import mix_tracks
-from .dedup import apply_cuts, find_retakes, write_decisions
+from .dedup import (
+    apply_cuts,
+    find_retakes,
+    parse_review_markdown,
+    write_decisions,
+    write_review_markdown,
+)
 from .io_utils import discover_session, require_jingles
 from .master import master_audio
+from .models import CutSpan
 from .silence import strip_silence_with_log
 from .transcribe import transcribe_session
 
@@ -162,17 +169,44 @@ def process_session(
 
     transcripts = transcribe_session(session, model_size=model_size)
 
-    all_spans = []
+    auto_spans: list[CutSpan] = []
+    if dedup_enabled:
+        for segment in session.segments:
+            auto_spans.extend(
+                find_retakes(
+                    segment.stem,
+                    transcripts[segment.stem],
+                    threshold=dedup_threshold,
+                )
+            )
+
+    write_review_markdown(session, transcripts, auto_spans)
+    _console.log(
+        f"wrote review file → {session.review_path.relative_to(session.root)}"
+    )
+    try:
+        input(
+            f"\nEdit {session.review_path} to adjust cuts, "
+            "then press Enter to continue… "
+        )
+    except (EOFError, KeyboardInterrupt):
+        _console.log("[yellow]aborted at review step[/yellow]")
+        raise
+
+    all_spans = parse_review_markdown(session, transcripts)
+    _console.log(
+        f"review: {len(all_spans)} cut span(s) "
+        f"(auto flagged {len(auto_spans)})"
+    )
+
+    spans_by_segment: dict[str, list[CutSpan]] = {}
+    for span in all_spans:
+        spans_by_segment.setdefault(span.segment, []).append(span)
+
     silence_log: list[dict] = []
     intermediate_paths: list[Path] = []
     for segment in session.segments:
-        chunks = transcripts[segment.stem]
-        spans = (
-            find_retakes(segment.stem, chunks, threshold=dedup_threshold)
-            if dedup_enabled
-            else []
-        )
-        all_spans.extend(spans)
+        spans = spans_by_segment.get(segment.stem, [])
 
         from pydub import AudioSegment
 
